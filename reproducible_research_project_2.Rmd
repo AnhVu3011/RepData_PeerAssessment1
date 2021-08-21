@@ -1,0 +1,134 @@
+---
+title: "reproducible_research_project_2"
+author: "Anh"
+date: "8/21/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Reproducible Research Project 2: NOAA Storm Data Analysis**
+
+# Sypnosis
+An analysis of NOAA Storm Events Data ranging from 1950 to 2011. We aggregate 
+the data and look at the total number of injuries, fatalities, and amount of 
+damage caused. Overall, floods are responsible for the most economic damage, but
+tornadoes cause the most injuries and fatalities. They are also the 3rd leading 
+cause of damage.
+
+# Data Processing
+Download data and unzip 
+```{r echo = TRUE}
+# library("R.utils")
+# download.file(
+#     "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2",
+#     "NOAA.csv.bz2", method = "curl")
+library(ggplot2)
+library(tidyverse)
+data = read.csv("NOAA.csv.bz2.csv")
+```
+# Results
+
+## What causes the most injuries?
+```{r echo = TRUE}
+injuries = data %>%
+            group_by(EVTYPE) %>%
+            summarise(total_injuries_by_type = sum(INJURIES)) %>%
+            arrange(desc(total_injuries_by_type))
+head(injuries)
+```
+We can see below that Tornadoes cause the most injuries.
+
+Plot top 5 events by total injuries
+```{r echo = TRUE}
+ggplot(injuries[1:5, ], aes(EVTYPE, total_injuries_by_type)) +
+  geom_bar(stat = "identity", fill = "#69b3a2", color = "White") + 
+  xlab("Event Type") + 
+  ylab("Number of injuries") + 
+  ggtitle("Total injuries by event type")
+```
+
+## What causes the most fatalities?
+
+```{r echo = TRUE}
+fatalities = data %>%
+            group_by(EVTYPE) %>%
+            summarise(total_fatalities_by_type = sum(FATALITIES)) %>%
+            arrange(desc(total_fatalities_by_type))
+head(fatalities)
+```
+We can see below that Tornadoes cause the most fatalities.
+
+Plot top 5 events by total fatalities
+```{r echo = TRUE}
+ggplot(fatalities[1:5, ], aes(EVTYPE, total_fatalities_by_type)) +
+  geom_bar(stat = "identity", fill = "#56B4E9", color = "White") + 
+  xlab("Event Type") + 
+  ylab("Number of fatalities") + 
+  ggtitle("Total fatalities by event type")
+```
+
+## Calcultaing damage
+
+The dataset provides an exponential multiplier in the form of 10x. The following
+code cleans up the inconsistencies in numeric values. Since we are most 
+interested in total damage, we combine the values for Crop and Property damage.
+```{r echo = TRUE}
+# First, make everything upper case
+data$PROPDMGEXP <- toupper(data$PROPDMGEXP)
+data$CROPDMGEXP <- toupper(data$CROPDMGEXP)
+unique(c(data$PROPDMGEXP, data$CROPDMGEXP))
+```
+```{r echo = TRUE}
+# Slice necessary columns
+damage <- data[, c("EVTYPE", "PROPDMG", "PROPDMGEXP", "CROPDMG", 
+                     "CROPDMGEXP")]
+damage[damage$PROPDMGEXP %in% c("", "+", "-", "?"), "PROPDMGEXP"] <- "0"
+damage[damage$CROPDMGEXP %in% c("", "+", "-", "?"), "CROPDMGEXP"] <- "0"
+unique(c(damage$PROPDMGEXP, damage$CROPDMGEXP))
+```
+```{r echo = TRUE}
+# Create 10^x substitutions for Billion, Hundred, Kilo, and Million
+damage[damage$PROPDMGEXP == "B", "PROPDMGEXP"] <- 9
+damage[damage$CROPDMGEXP == "B", "CROPDMGEXP"] <- 9
+damage[damage$PROPDMGEXP == "M", "PROPDMGEXP"] <- 6
+damage[damage$CROPDMGEXP == "M", "CROPDMGEXP"] <- 6
+damage[damage$PROPDMGEXP == "K", "PROPDMGEXP"] <- 3
+damage[damage$CROPDMGEXP == "K", "CROPDMGEXP"] <- 3
+damage[damage$PROPDMGEXP == "H", "PROPDMGEXP"] <- 2
+damage[damage$CROPDMGEXP == "H", "CROPDMGEXP"] <- 2
+unique(c(damage$PROPDMGEXP, damage$CROPDMGEXP))
+```
+```{r echo = TRUE}
+# Now combine the exponent with the value
+damage$PROPDMGEXP <- 10^(as.numeric(damage$PROPDMGEXP))
+damage$CROPDMGEXP <- 10^(as.numeric(damage$CROPDMGEXP))
+damage[is.na(damage$PROPDMG), "PROPDMG"] <- 0
+damage[is.na(damage$CROPDMG), "CROPDMG"] <- 0
+```
+Calculate total damage by event type
+```{r echo = TRUE}
+total_damage = damage %>%
+                group_by(EVTYPE) %>%
+                summarise(total_damage_by_event_type = sum(PROPDMG * PROPDMGEXP 
+                                                        + CROPDMG * CROPDMGEXP)
+                          ) %>%
+                arrange(desc(total_damage_by_event_type))
+head(total_damage)               
+```
+We can see that Floods cause the most damage.
+Plot total damage by event type
+```{r echo = TRUE}
+ggplot(total_damage[1:5, ], aes(EVTYPE, total_damage_by_event_type)) +
+  geom_bar(stat = "identity", fill = "#56B4E9", color = "White") + 
+  xlab("Event Type") + 
+  ylab("Damage in USD") + 
+  ggtitle("Total damage in USD by event type") +
+  theme(axis.text.x = element_text(angle = 45))
+```
+
+# Conclusion
+
+Floods are responsible for the most economic damage, but tornadoes cause the 
+most injuries and fatalities. Floods are also the 3rd leading cause of damage.

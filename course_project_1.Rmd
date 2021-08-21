@@ -83,7 +83,7 @@ total_steps_wo_na = activity_wo_na %>%
      summarise(sum(steps))
 ```
 
-```{r echp = TRUE}
+```{r echo = TRUE}
 (mean(total_steps_wo_na$`sum(steps)`))
 (median(total_steps_wo_na$`sum(steps)`))
 ```
